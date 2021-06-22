@@ -1,0 +1,59 @@
+# ASP.NET Core (.NET Framework)
+# Build and test ASP.NET Core projects targeting the full .NET Framework.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+trigger: 
+ - master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  project: '**/GAE.AIQ.API/GAE.AIQ.API.csproj'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  solution: '**/*.sln'
+
+steps:
+- task: DotNetCoreCLI@2
+  displayName: 'Restore Dependencies'
+  inputs:
+    command: 'restore'
+    projects: '$(project)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Build Project'
+  inputs:
+    command: 'build'
+    projects: '$(project)'
+    arguments: '--no-restore --configuration $(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Publish'
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: '$(project)'
+    arguments: '--no-restore --configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
+    modifyOutputPath: false
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: drop'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
+  condition: succeeded()
+
+- task: AzureRmWebAppDeployment@4
+  displayName: 'Publish WepApi'
+  inputs:
+    ConnectionType: 'AzureRM'
+    azureSubscription: 'Suscripción de Visual Studio Enterprise - MPN(ef5eb534-525d-481a-a056-119f467f4499)'
+    appType: 'webAppLinux'
+    WebAppName: 'gaepipeline'
+    packageForLinux: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+    RuntimeStack: 'DOTNETCORE|3.1'
+    StartupCommand: 'dotnet GAE.AIQ.API.dll'
+  enabled: true
+  
